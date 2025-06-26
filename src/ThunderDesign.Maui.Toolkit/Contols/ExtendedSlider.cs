@@ -110,6 +110,7 @@ public class ExtendedSlider : Slider, ISliderController, ISlider
 
     protected virtual void OnValueChanged(object? sender, ValueChangedEventArgs e)
     {
+        if (_isUpdating) return;
         RecalculateAll();
     }
 
@@ -121,9 +122,13 @@ public class ExtendedSlider : Slider, ISliderController, ISlider
 
     protected virtual void RecalculateTickValue()
     {
+        if (_isUpdating) return;
+        
         int newTickValue = 0;
         try
         {
+            _isUpdating = true;
+            
             if (_tickFrequency == 0)
                 CalculateTickFrequency();
             if (_tickFrequency == 0)
@@ -135,41 +140,56 @@ public class ExtendedSlider : Slider, ISliderController, ISlider
         {
             if (!EqualityComparer<int>.Default.Equals(TickValue, newTickValue))
                 TickValue = newTickValue;
+                
+            _isUpdating = false;
         }
     }
 
     protected virtual void RecalculateValue()
     {
-        if (!IsSnapToTickEnabled)
+        if (!IsSnapToTickEnabled || _isUpdating) 
             return;
 
         double newValue = Minimum;
         try
         {
+            _isUpdating = true;
+            
             if (_tickFrequency == 0)
                 CalculateTickFrequency();
             if (_tickFrequency == 0)
                 return;
 
             newValue = TickValue * _tickFrequency + Minimum;
+            
+            // Use a more precise comparison for doubles
+            const double epsilon = 1e-6;
+            if (Math.Abs(Value - newValue) > epsilon)
+                Value = newValue;
         }
         finally
         {
-            if (!EqualityComparer<double>.Default.Equals(Value, newValue))
-                Value = newValue;
+            _isUpdating = false;
         }
     }
 
     protected virtual void RecalculateAll()
     {
-        if (!IsSnapToTickEnabled)
+        if (!IsSnapToTickEnabled || _isUpdating)
             return;
 
-        CalculateTickFrequency();
-
-        RecalculateTickValue();
-
-        RecalculateValue();
+        try
+        {
+            _isUpdating = true;
+            
+            CalculateTickFrequency();
+            RecalculateTickValue();
+            RecalculateValue();
+        }
+        finally
+        {
+            _isUpdating = false;
+        }
     }
 
     protected override void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -178,4 +198,5 @@ public class ExtendedSlider : Slider, ISliderController, ISlider
     }
 
     private double _tickFrequency;
+    private bool _isUpdating = false;
 }

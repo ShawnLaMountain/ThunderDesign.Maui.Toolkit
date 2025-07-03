@@ -1,7 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 
 
-namespace ThunderDesign.Maui.Toolkit.Contols;
+namespace ThunderDesign.Maui.Toolkit.Controls;
 
 public class ExtendedSlider : Slider, ISliderController, ISlider
 {

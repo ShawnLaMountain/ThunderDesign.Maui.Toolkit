@@ -156,6 +156,20 @@ public class FloatingActionButton : Button
         BindableProperty.Create(nameof(IsExtended), typeof(bool), typeof(FloatingActionButton), 
             false, propertyChanged: OnIsExtendedPropertyChanged);
     
+    /// <summary>
+    /// Identifies the AutoHideOnScroll bindable property.
+    /// </summary>
+    public static readonly BindableProperty AutoHideOnScrollProperty =
+        BindableProperty.Create(nameof(AutoHideOnScroll), typeof(bool), typeof(FloatingActionButton), 
+            false, propertyChanged: OnAutoHideOnScrollPropertyChanged);
+
+    /// <summary>
+    /// Identifies the ScrollView bindable property.
+    /// </summary>
+    public static readonly BindableProperty ScrollViewProperty =
+        BindableProperty.Create(nameof(ScrollView), typeof(ScrollView), typeof(FloatingActionButton),
+            null, propertyChanged: OnScrollViewPropertyChanged);
+    
     #endregion
     
     #region Properties
@@ -304,6 +318,25 @@ public class FloatingActionButton : Button
         set => SetValue(IsExtendedProperty, value);
     }
     
+    /// <summary>
+    /// Gets or sets whether the FAB should automatically hide on scroll when inside a ScrollView.
+    /// </summary>
+    public bool AutoHideOnScroll
+    {
+        get => (bool)GetValue(AutoHideOnScrollProperty);
+        set => SetValue(AutoHideOnScrollProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the ScrollView that this FAB should attach to for hide-on-scroll behavior.
+    /// When set, this takes precedence over auto-detection.
+    /// </summary>
+    public ScrollView ScrollView
+    {
+        get => (ScrollView)GetValue(ScrollViewProperty);
+        set => SetValue(ScrollViewProperty, value);
+    }
+    
     #endregion
     
     #region Property Change Handlers
@@ -359,10 +392,28 @@ public class FloatingActionButton : Button
         control?.UpdateLayout();
     }
     
+    protected static void OnAutoHideOnScrollPropertyChanged(BindableObject bindable, object oldValue, object newValue)
+    {
+        if (bindable is FloatingActionButton fab)
+        {
+            fab.UpdateScrollViewAttachment();
+        }
+    }
+
+    private static void OnScrollViewPropertyChanged(BindableObject bindable, object oldValue, object newValue)
+    {
+        if (bindable is FloatingActionButton fab)
+        {
+            fab.UpdateScrollViewAttachment();
+        }
+    }
+    
     #endregion
     
     #region Methods
     
+    private ScrollView? _attachedScrollView;
+
     /// <summary>
     /// Updates the size of the FAB based on the IsMini property.
     /// </summary>
@@ -402,7 +453,7 @@ public class FloatingActionButton : Button
         }
         else
         {
-            Shadow = default; // Use default instead of null
+            Shadow = null!; // Use null-forgiving operator to suppress warning
         }
     }
     
@@ -467,6 +518,91 @@ public class FloatingActionButton : Button
             // Regular/mini FAB
             Padding = IsMini ? new Thickness(8) : new Thickness(16);
         }
+    }
+    
+    /// <summary>
+    /// Updates the attachment of the FAB to a ScrollView for auto-hide functionality.
+    /// </summary>
+    private void UpdateScrollViewAttachment()
+    {
+        // First detach from any existing scroll view
+        if (_attachedScrollView != null)
+        {
+            Extensions.ScrollViewExtensions.DetachFab(_attachedScrollView);
+            _attachedScrollView = null;
+        }
+        
+        // Priority 1: Use explicitly set ScrollView if available
+        if (ScrollView != null)
+        {
+            _attachedScrollView = ScrollView;
+            Extensions.ScrollViewExtensions.AttachFab(_attachedScrollView, this, true);
+            return;
+        }
+        
+        // Priority 2: Auto-detect if enabled
+        if (AutoHideOnScroll && Parent != null)
+        {
+            // Find the nearest ScrollView ancestor
+            var scrollView = FindParentOfType<ScrollView>();
+            
+            if (scrollView != null)
+            {
+                _attachedScrollView = scrollView;
+                Extensions.ScrollViewExtensions.AttachFab(scrollView, this, true);
+            }
+        }
+    }
+    
+    // Improved version of FindParentOfType that can look inside visual trees
+    private T? FindParentOfType<T>() where T : Element
+    {
+        Element? current = Parent;
+        
+        while (current != null)
+        {
+            if (current is T result)
+            {
+                return result;
+            }
+            
+            // Special case: look inside content-holding controls
+            if (current is ContentView cv && cv.Content is Element contentElement)
+            {
+                var found = FindInElement<T>(contentElement);
+                if (found != null)
+                    return found;
+            }
+            
+            current = current.Parent;
+        }
+        
+        return null;
+    }
+
+    private T? FindInElement<T>(Element element) where T : Element
+    {
+        if (element is T result)
+            return result;
+            
+        if (element is Layout layout)
+        {
+            foreach (var child in layout.Children)
+            {
+                if (child is Element childElement)
+                {
+                    var found = FindInElement<T>(childElement);
+                    if (found != null)
+                        return found;
+                }
+            }
+        }
+        else if (element is ContentView cv && cv.Content is Element content)
+        {
+            return FindInElement<T>(content);
+        }
+        
+        return null;
     }
     
     /// <summary>
@@ -580,6 +716,35 @@ public class FloatingActionButton : Button
         else if (propertyName == nameof(base.TextColor) && base.TextColor != IconTintColor)
         {
             IconTintColor = base.TextColor;
+        }
+    }
+    
+    /// <summary>
+    /// Called when the parent of the FAB is set.
+    /// </summary>
+    protected override void OnParentSet()
+    {
+        base.OnParentSet();
+        
+        // When the parent changes, check if we need to attach to a ScrollView
+        UpdateScrollViewAttachment();
+    }
+
+    /// <summary>
+    /// Called when the handler of the FAB is changing.
+    /// </summary>
+    protected override void OnHandlerChanging(HandlerChangingEventArgs args)
+    {
+        base.OnHandlerChanging(args);
+        
+        if (args.NewHandler == null)
+        {
+            // Clean up when the control is removed
+            if (_attachedScrollView != null)
+            {
+                Extensions.ScrollViewExtensions.DetachFab(_attachedScrollView);
+                _attachedScrollView = null;
+            }
         }
     }
     

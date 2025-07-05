@@ -24,4 +24,8 @@
 		<PackageReference Include="ThunderDesign.Net-PCL.ToolBox" Version="1.0.4" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <Folder Include="Enums\" />
+	</ItemGroup>
+
 </Project>

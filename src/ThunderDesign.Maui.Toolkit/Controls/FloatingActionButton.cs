@@ -4,6 +4,52 @@ using System.Windows.Input;
 namespace ThunderDesign.Maui.Toolkit.Controls;
 
 /// <summary>
+/// Defines the size variants for FloatingActionButton according to Material Design specifications.
+/// </summary>
+public enum FloatingActionButtonSize
+{
+    /// <summary>
+    /// Normal size (56dp).
+    /// </summary>
+    Normal,
+    
+    /// <summary>
+    /// Mini size (40dp).
+    /// </summary>
+    Mini,
+    
+    /// <summary>
+    /// Custom size defined by user.
+    /// </summary>
+    Custom
+}
+
+/// <summary>
+/// Defines the elevation level according to Material 3 design specifications.
+/// </summary>
+public enum MaterialElevation
+{
+    Level0 = 0,  // 0dp - No elevation
+    Level1 = 1,  // 1dp - Subtle elevation for cards, etc.
+    Level2 = 2,  // 3dp - Default for FABs
+    Level3 = 3,  // 6dp - Higher elevation for dialogs
+    Level4 = 4,  // 8dp - Highest elevation for modals
+    Level5 = 5   // 12dp - Maximum elevation for temporary surfaces
+}
+
+/// <summary>
+/// Defines the position variants for FloatingActionButton.
+/// </summary>
+public enum FabPosition
+{
+    BottomRight,
+    BottomLeft,
+    TopRight,
+    TopLeft,
+    Center
+}
+
+/// <summary>
 /// A Material Design Floating Action Button (FAB) implementation for .NET MAUI.
 /// </summary>
 public class FloatingActionButton : Button
@@ -17,13 +63,16 @@ public class FloatingActionButton : Button
     {
         // Set default values
         Padding = 0;
-        CornerRadius = 28; // Default size for standard FAB
         
-        // Set default sizing
-        HeightRequest = 56;
-        WidthRequest = 56;
+        // Material 3 standard size
+        double size = 56;
+        HeightRequest = size;
+        WidthRequest = size;
         
-        // Set up shadows
+        // For a perfectly circular button, radius should be half the size
+        CornerRadius = (int)(size / 2); 
+        
+        // Set up shadows according to Material 3 elevation system
         Shadow = new Shadow
         {
             Brush = new SolidColorBrush(ShadowColor),
@@ -38,6 +87,9 @@ public class FloatingActionButton : Button
         // Connect to parent change events
         Loaded += OnFloatingActionButtonLoaded!;
         Unloaded += OnFloatingActionButtonUnloaded!;
+        
+        // Setup visual state manager
+        SetupVisualStateManager();
     }
     
     #endregion
@@ -127,6 +179,13 @@ public class FloatingActionButton : Button
     public static readonly BindableProperty IsMiniProperty =
         BindableProperty.Create(nameof(IsMini), typeof(bool), typeof(FloatingActionButton), 
             false, propertyChanged: OnIsMiniPropertyChanged);
+
+    /// <summary>
+    /// Identifies the FabSize bindable property.
+    /// </summary>
+    public static readonly BindableProperty FabSizeProperty =
+        BindableProperty.Create(nameof(FabSize), typeof(FloatingActionButtonSize), typeof(FloatingActionButton),
+            FloatingActionButtonSize.Normal, propertyChanged: OnFabSizePropertyChanged);
     
     /// <summary>
     /// Identifies the ButtonColor bindable property.
@@ -169,6 +228,59 @@ public class FloatingActionButton : Button
     public static readonly BindableProperty ScrollViewProperty =
         BindableProperty.Create(nameof(ScrollView), typeof(ScrollView), typeof(FloatingActionButton),
             null, propertyChanged: OnScrollViewPropertyChanged);
+
+    /// <summary>
+    /// Identifies the Position bindable property.
+    /// </summary>
+    public static readonly BindableProperty PositionProperty =
+        BindableProperty.Create(nameof(Position), typeof(string), typeof(FloatingActionButton), 
+            "BottomRight", propertyChanged: OnPositionPropertyChanged);
+
+    /// <summary>
+    /// Identifies the ShowOnlyWhenScrolledUp bindable property.
+    /// </summary>
+    public static readonly BindableProperty ShowOnlyWhenScrolledUpProperty =
+        BindableProperty.Create(nameof(ShowOnlyWhenScrolledUp), typeof(bool), typeof(FloatingActionButton), false);
+
+    /// <summary>
+    /// Identifies the GradientStart bindable property.
+    /// </summary>
+    public static readonly BindableProperty GradientStartProperty =
+        BindableProperty.Create(nameof(GradientStart), typeof(Color), typeof(FloatingActionButton), Colors.Transparent);
+
+    /// <summary>
+    /// Identifies the GradientEnd bindable property.
+    /// </summary>
+    public static readonly BindableProperty GradientEndProperty =
+        BindableProperty.Create(nameof(GradientEnd), typeof(Color), typeof(FloatingActionButton), Colors.Transparent);
+
+    /// <summary>
+    /// Identifies the EnableStateLayers bindable property.
+    /// </summary>
+    public static readonly BindableProperty EnableStateLayersProperty =
+        BindableProperty.Create(nameof(EnableStateLayers), typeof(bool), typeof(FloatingActionButton),
+            true);
+
+    /// <summary>
+    /// Identifies the StateLayerOpacity bindable property.
+    /// </summary>
+    public static readonly BindableProperty StateLayerOpacityProperty =
+        BindableProperty.Create(nameof(StateLayerOpacity), typeof(float), typeof(FloatingActionButton),
+            0.12f);
+
+    /// <summary>
+    /// Identifies the UseMaterial3Colors bindable property.
+    /// </summary>
+    public static readonly BindableProperty UseMaterial3ColorsProperty =
+        BindableProperty.Create(nameof(UseMaterial3Colors), typeof(bool), typeof(FloatingActionButton),
+            true, propertyChanged: OnUseMaterial3ColorsPropertyChanged);
+
+    /// <summary>
+    /// Identifies the Elevation bindable property.
+    /// </summary>
+    public static readonly BindableProperty ElevationProperty =
+        BindableProperty.Create(nameof(Elevation), typeof(MaterialElevation), typeof(FloatingActionButton),
+            MaterialElevation.Level2, propertyChanged: OnElevationPropertyChanged);
     
     #endregion
     
@@ -281,6 +393,15 @@ public class FloatingActionButton : Button
         get => (bool)GetValue(IsMiniProperty);
         set => SetValue(IsMiniProperty, value);
     }
+
+    /// <summary>
+    /// Gets or sets the size variant of the FAB.
+    /// </summary>
+    public FloatingActionButtonSize FabSize
+    {
+        get => (FloatingActionButtonSize)GetValue(FabSizeProperty);
+        set => SetValue(FabSizeProperty, value);
+    }
     
     /// <summary>
     /// Gets or sets the background color of the button.
@@ -336,6 +457,78 @@ public class FloatingActionButton : Button
         get => (ScrollView)GetValue(ScrollViewProperty);
         set => SetValue(ScrollViewProperty, value);
     }
+
+    /// <summary>
+    /// Gets or sets the position of the FAB.
+    /// </summary>
+    public string Position
+    {
+        get => (string)GetValue(PositionProperty);
+        set => SetValue(PositionProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the FAB should only be visible when scrolled up.
+    /// </summary>
+    public bool ShowOnlyWhenScrolledUp
+    {
+        get => (bool)GetValue(ShowOnlyWhenScrolledUpProperty);
+        set => SetValue(ShowOnlyWhenScrolledUpProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the start color for the gradient background.
+    /// </summary>
+    public Color GradientStart
+    {
+        get => (Color)GetValue(GradientStartProperty);
+        set => SetValue(GradientStartProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the end color for the gradient background.
+    /// </summary>
+    public Color GradientEnd
+    {
+        get => (Color)GetValue(GradientEndProperty);
+        set => SetValue(GradientEndProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether Material state layers are enabled for hover/pressed states.
+    /// </summary>
+    public bool EnableStateLayers
+    {
+        get => (bool)GetValue(EnableStateLayersProperty);
+        set => SetValue(EnableStateLayersProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the opacity for state layers (hover/pressed states).
+    /// </summary>
+    public float StateLayerOpacity
+    {
+        get => (float)GetValue(StateLayerOpacityProperty);
+        set => SetValue(StateLayerOpacityProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the FAB should use Material 3 color tokens.
+    /// </summary>
+    public bool UseMaterial3Colors
+    {
+        get => (bool)GetValue(UseMaterial3ColorsProperty);
+        set => SetValue(UseMaterial3ColorsProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the Material 3 elevation level of the FAB.
+    /// </summary>
+    public MaterialElevation Elevation
+    {
+        get => (MaterialElevation)GetValue(ElevationProperty);
+        set => SetValue(ElevationProperty, value);
+    }
     
     #endregion
     
@@ -353,7 +546,31 @@ public class FloatingActionButton : Button
             return;
 
         var control = bindable as FloatingActionButton;
-        control?.UpdateSize();
+        
+        // Update FabSize property to stay in sync with IsMini
+        if (control != null)
+        {
+            control.FabSize = ((bool)newValue) ? FloatingActionButtonSize.Mini : FloatingActionButtonSize.Normal;
+        }
+    }
+
+    protected static void OnFabSizePropertyChanged(BindableObject bindable, object oldValue, object newValue)
+    {
+        if (EqualityComparer<FloatingActionButtonSize>.Default.Equals((FloatingActionButtonSize)oldValue, (FloatingActionButtonSize)newValue))
+            return;
+
+        var control = bindable as FloatingActionButton;
+        
+        // Update IsMini property to stay in sync with FabSize
+        if (control != null)
+        {
+            if ((FloatingActionButtonSize)newValue == FloatingActionButtonSize.Mini)
+                control.IsMini = true;
+            else if ((FloatingActionButtonSize)newValue == FloatingActionButtonSize.Normal)
+                control.IsMini = false;
+                
+            control.UpdateSize();
+        }
     }
     
     protected static void OnButtonColorPropertyChanged(BindableObject bindable, object oldValue, object newValue)
@@ -407,6 +624,24 @@ public class FloatingActionButton : Button
             fab.UpdateScrollViewAttachment();
         }
     }
+
+    protected static void OnPositionPropertyChanged(BindableObject bindable, object oldValue, object newValue)
+    {
+        var control = bindable as FloatingActionButton;
+        control?.UpdatePosition();
+    }
+
+    private static void OnUseMaterial3ColorsPropertyChanged(BindableObject bindable, object oldValue, object newValue)
+    {
+        var control = bindable as FloatingActionButton;
+        control?.UpdateMaterial3Colors();
+    }
+
+    private static void OnElevationPropertyChanged(BindableObject bindable, object oldValue, object newValue)
+    {
+        var control = bindable as FloatingActionButton;
+        control?.UpdateElevation();
+    }
     
     #endregion
     
@@ -415,25 +650,61 @@ public class FloatingActionButton : Button
     private ScrollView? _attachedScrollView;
 
     /// <summary>
-    /// Updates the size of the FAB based on the IsMini property.
+    /// Updates the size of the FAB based on the FabSize and IsMini properties.
     /// </summary>
     protected virtual void UpdateSize()
     {
-        if (IsMini)
+        double size;
+        
+        switch (FabSize)
         {
-            HeightRequest = 40;
-            WidthRequest = IsExtended ? -1 : 40; // Auto width when extended
-            CornerRadius = 20;
+            case FloatingActionButtonSize.Mini: // Small FAB in Material 3
+                size = 40; // Material 3 small FAB is 40dp
+                break;
+                
+            case FloatingActionButtonSize.Normal: // Regular FAB
+                size = 56; // Material 3 standard FAB is 56dp
+                break;
+                
+            default:
+                size = IsMini ? 40 : 56; // Fallback for backward compatibility
+                break;
+        }
+        
+        HeightRequest = size;
+        
+        if (IsExtended)
+        {
+            WidthRequest = -1; // Auto width for extended FAB
+            // For extended FABs, use standard corner radius according to Material Design
+            CornerRadius = (int)(size / 2);
         }
         else
         {
-            HeightRequest = 56;
-            WidthRequest = IsExtended ? -1 : 56; // Auto width when extended
-            CornerRadius = 28;
+            WidthRequest = size; // Equal width and height for circular FAB
+            // For a circle, corner radius should be half the width/height
+            CornerRadius = (int)(size / 2);
         }
         
-        // Update padding
         UpdatePadding();
+    }
+
+    /// <summary>
+    /// Updates the padding of the FAB based on its type.
+    /// </summary>
+    protected virtual void UpdatePadding()
+    {
+        if (IsExtended)
+        {
+            // Material 3 extended FAB has 16dp horizontal padding and 16dp minimum spacing between icon and label
+            Padding = new Thickness(16, 0);
+            ContentLayout = new Microsoft.Maui.Controls.Button.ButtonContentLayout(Button.ButtonContentLayout.ImagePosition.Left, 16);
+        }
+        else
+        {
+            // Regular/mini FAB padding for icon
+            Padding = IsMini ? new Thickness(8) : new Thickness(16);
+        }
     }
     
     /// <summary>
@@ -503,20 +774,32 @@ public class FloatingActionButton : Button
     }
     
     /// <summary>
-    /// Updates the padding of the FAB based on its type.
+    /// Updates the position of the FAB.
     /// </summary>
-    protected virtual void UpdatePadding()
+    protected virtual void UpdatePosition()
     {
-        // Set appropriate padding based on FAB type
-        if (IsExtended)
+        switch (Position)
         {
-            // Extended FAB needs horizontal padding
-            Padding = new Thickness(16, 0);
-        }
-        else
-        {
-            // Regular/mini FAB
-            Padding = IsMini ? new Thickness(8) : new Thickness(16);
+            case "BottomRight":
+                VerticalOptions = LayoutOptions.End;
+                HorizontalOptions = LayoutOptions.End;
+                break;
+            case "BottomLeft":
+                VerticalOptions = LayoutOptions.End;
+                HorizontalOptions = LayoutOptions.Start;
+                break;
+            case "TopRight":
+                VerticalOptions = LayoutOptions.Start;
+                HorizontalOptions = LayoutOptions.End;
+                break;
+            case "TopLeft":
+                VerticalOptions = LayoutOptions.Start;
+                HorizontalOptions = LayoutOptions.Start;
+                break;
+            default:
+                VerticalOptions = LayoutOptions.Center;
+                HorizontalOptions = LayoutOptions.Center;
+                break;
         }
     }
     
@@ -603,6 +886,76 @@ public class FloatingActionButton : Button
         }
         
         return null;
+    }
+    
+    /// <summary>
+    /// Updates the Material 3 colors for the FAB.
+    /// </summary>
+    protected virtual void UpdateMaterial3Colors()
+    {
+        if (!UseMaterial3Colors)
+            return;
+        
+        // Try to find Material 3 color tokens from resources
+        if (Application.Current?.Resources != null)
+        {
+            // Try to find primary and on-primary colors from Material 3 color system
+            if (Application.Current.Resources.TryGetValue("PrimaryContainer", out var primaryColor))
+            {
+                ButtonColor = (Color)primaryColor;
+            }
+            
+            if (Application.Current.Resources.TryGetValue("OnPrimaryContainer", out var onPrimaryColor))
+            {
+                IconTintColor = (Color)onPrimaryColor;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Updates the elevation of the FAB based on the Elevation property.
+    /// </summary>
+    protected virtual void UpdateElevation()
+    {
+        if (!HasShadow)
+            return;
+        
+        // Material 3 elevation mapping to shadow properties
+        switch (Elevation)
+        {
+            case MaterialElevation.Level0:
+                ShadowRadius = 0;
+                ShadowOpacity = 0;
+                ShadowOffset = new Point(0, 0);
+                break;
+            case MaterialElevation.Level1:
+                ShadowRadius = 2;
+                ShadowOpacity = 0.2f;
+                ShadowOffset = new Point(0, 1);
+                break;
+            case MaterialElevation.Level2: // Default for FAB
+                ShadowRadius = 6;
+                ShadowOpacity = 0.3f;
+                ShadowOffset = new Point(0, 3);
+                break;
+            case MaterialElevation.Level3:
+                ShadowRadius = 8;
+                ShadowOpacity = 0.35f;
+                ShadowOffset = new Point(0, 4);
+                break;
+            case MaterialElevation.Level4:
+                ShadowRadius = 12;
+                ShadowOpacity = 0.4f;
+                ShadowOffset = new Point(0, 6);
+                break;
+            case MaterialElevation.Level5:
+                ShadowRadius = 16;
+                ShadowOpacity = 0.45f;
+                ShadowOffset = new Point(0, 8);
+                break;
+        }
+        
+        UpdateShadow();
     }
     
     /// <summary>
@@ -717,6 +1070,34 @@ public class FloatingActionButton : Button
         {
             IconTintColor = base.TextColor;
         }
+        else if (propertyName == nameof(IsPressed) && EnableStateLayers)
+        {
+            // Apply state layer effect when pressed
+            UpdateStateLayer();
+        }
+    }
+
+    private void UpdateStateLayer()
+    {
+        if (!EnableStateLayers)
+            return;
+        
+        if (IsPressed)
+        {
+            // Apply pressed state - darken the color slightly using state layer
+            var darkened = new Color(
+                ButtonColor.Red * (1 - StateLayerOpacity),
+                ButtonColor.Green * (1 - StateLayerOpacity),
+                ButtonColor.Blue * (1 - StateLayerOpacity),
+                ButtonColor.Alpha
+            );
+            BackgroundColor = darkened;
+        }
+        else
+        {
+            // Restore normal state
+            BackgroundColor = ButtonColor;
+        }
     }
     
     /// <summary>
@@ -746,6 +1127,51 @@ public class FloatingActionButton : Button
                 _attachedScrollView = null;
             }
         }
+    }
+    
+    /// <summary>
+    /// Sets up the visual state manager for the FAB.
+    /// </summary>
+    private void SetupVisualStateManager()
+    {
+        VisualStateManager.SetVisualStateGroups(this, new VisualStateGroupList
+        {
+            new VisualStateGroup
+            {
+                Name = "CommonStates",
+                States =
+                {
+                    new VisualState
+                    {
+                        Name = "Normal"
+                    },
+                    new VisualState
+                    {
+                        Name = "PointerOver",
+                        Setters =
+                        {
+                            new Setter { Property = OpacityProperty, Value = 0.9 }
+                        }
+                    },
+                    new VisualState
+                    {
+                        Name = "Pressed",
+                        Setters =
+                        {
+                            new Setter { Property = OpacityProperty, Value = 0.8 }
+                        }
+                    },
+                    new VisualState
+                    {
+                        Name = "Disabled",
+                        Setters =
+                        {
+                            new Setter { Property = OpacityProperty, Value = 0.5 }
+                        }
+                    }
+                }
+            }
+        });
     }
     
     #endregion
